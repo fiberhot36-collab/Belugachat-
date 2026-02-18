@@ -1,0 +1,876 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>BelugaChat</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="/socket.io/socket.io.js"></script>
+<style>
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+:root {
+  --bg: #07090f;
+  --card: #0e1420;
+  --accent: #00d4ff;
+  --accent2: #7c5cf6;
+  --red: #ff3b5c;
+  --green: #00e096;
+  --text: #eef2ff;
+  --sub: #4a5a7a;
+  --border: rgba(255,255,255,0.07);
+  --nav: 74px;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.screen {
+  position: fixed; inset: 0;
+  display: flex; flex-direction: column;
+  transition: opacity .35s ease, transform .35s ease;
+}
+.screen.off { opacity: 0; pointer-events: none; transform: translateY(12px); }
+
+/* ══ LOGIN ══ */
+#sLogin {
+  align-items: center; justify-content: center;
+  background:
+    radial-gradient(ellipse 60% 50% at 15% 85%, rgba(124,92,246,.2) 0%, transparent 70%),
+    radial-gradient(ellipse 55% 45% at 85% 15%, rgba(0,212,255,.15) 0%, transparent 65%),
+    var(--bg);
+}
+
+.lcard {
+  background: rgba(14,20,32,.92);
+  backdrop-filter: blur(28px);
+  border: 1px solid var(--border);
+  border-radius: 26px;
+  padding: 40px 32px 36px;
+  width: min(400px, 94vw);
+  display: flex; flex-direction: column; align-items: center; gap: 22px;
+  box-shadow: 0 40px 80px rgba(0,0,0,.6);
+}
+
+.llogo {
+  width: 60px; height: 60px; border-radius: 18px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 26px; font-weight: 800; color: #fff;
+  box-shadow: 0 6px 28px rgba(0,212,255,.35);
+}
+
+.ltitle {
+  font-family: 'Syne', sans-serif;
+  font-size: 26px; font-weight: 800;
+  text-align: center; line-height: 1.2;
+}
+.ltitle span {
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+}
+.lsub { font-size: 14px; color: var(--sub); text-align: center; line-height: 1.6; }
+
+.checks { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.crow {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13px; color: var(--sub); line-height: 1.55; cursor: pointer; user-select: none;
+}
+.crow input { display: none; }
+.cbox {
+  width: 19px; height: 19px; min-width: 19px; border-radius: 6px;
+  border: 1.5px solid #2d3a52; margin-top: 1px;
+  display: flex; align-items: center; justify-content: center; transition: all .18s;
+}
+.crow input:checked ~ .cbox { background: var(--accent); border-color: var(--accent); }
+.cbox svg { display: none; }
+.crow input:checked ~ .cbox svg { display: block; }
+.crow a { color: var(--accent); text-decoration: none; }
+
+.gbtn {
+  display: flex; align-items: center; justify-content: center; gap: 11px;
+  width: 100%; padding: 14px; border: none; border-radius: 14px;
+  background: #fff; color: #111;
+  font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 600;
+  cursor: pointer; box-shadow: 0 4px 18px rgba(0,0,0,.35);
+  transition: transform .15s, box-shadow .15s;
+}
+.gbtn:hover { transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,.45); }
+.gbtn:active { transform: translateY(0); }
+.gico { width: 20px; height: 20px; }
+
+.entbtn {
+  width: 100%; padding: 15px; border: none; border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  color: #fff; font-family: 'Syne', sans-serif; font-size: 15px; font-weight: 700;
+  cursor: pointer; box-shadow: 0 4px 22px rgba(0,212,255,.2);
+  transition: opacity .2s, transform .15s;
+}
+.entbtn:disabled { opacity: .35; cursor: not-allowed; }
+.entbtn:not(:disabled):hover { opacity: .88; transform: translateY(-1px); }
+
+/* ══ CHAT ══ */
+#sChat { background: #000; position: relative; }
+
+.vtop {
+  position: absolute; inset: 0 0 var(--nav) 0;
+  background: #050810;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.vtop video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.vpip {
+  position: absolute;
+  bottom: calc(var(--nav) + 14px); right: 14px;
+  width: 100px; height: 140px;
+  border-radius: 14px; overflow: hidden;
+  border: 2px solid rgba(255,255,255,.15);
+  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+  z-index: 10; background: #0a0e18;
+}
+.vpip video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pip-label {
+  position: absolute; bottom: 5px; left: 6px;
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,.6);
+  text-transform: uppercase; letter-spacing: .05em;
+  background: rgba(0,0,0,.45); padding: 2px 6px; border-radius: 4px;
+}
+
+/* Waiting */
+.waiting {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+  background: rgba(5,8,16,.88); z-index: 5;
+}
+.waiting.gone { display: none; }
+.spin {
+  width: 50px; height: 50px; border-radius: 50%;
+  border: 3px solid rgba(0,212,255,.12); border-top-color: var(--accent);
+  animation: rot .75s linear infinite;
+}
+@keyframes rot { to { transform: rotate(360deg); } }
+.waiting p { font-size: 15px; color: var(--sub); }
+.wname {
+  font-family:'Syne',sans-serif; font-size:24px; font-weight:800;
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
+  -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+}
+
+/* Status pill */
+.spill {
+  position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,0,0,.55); backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 20px; padding: 5px 14px;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 500; color: var(--sub);
+  z-index: 6; white-space: nowrap;
+}
+.sdot { width: 7px; height: 7px; border-radius: 50%; background: var(--sub); transition: background .3s; }
+.sdot.live { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.sdot.wait { background: #f5a623; box-shadow: 0 0 6px #f5a623; animation: blink 1s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+/* Settings btn */
+.settbtn {
+  position: absolute; top: 14px; right: 14px; z-index: 15;
+  width: 38px; height: 38px; border-radius: 12px;
+  background: rgba(0,0,0,.5); backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.1); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; color: #fff;
+  transition: background .15s;
+}
+.settbtn:hover { background: rgba(255,255,255,.1); }
+
+/* ══ NAV ══ */
+.nav {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  height: var(--nav);
+  background: rgba(0,0,0,.85);
+  backdrop-filter: blur(22px) saturate(1.4);
+  border-top: 1px solid rgba(255,255,255,.05);
+  display: flex; align-items: center; justify-content: space-around;
+  padding: 0 4px 6px; z-index: 20;
+}
+.nbtn {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer; color: var(--text);
+  padding: 6px 8px; border-radius: 12px;
+  flex: 1; min-width: 0; transition: background .15s;
+}
+.nbtn:active { background: rgba(255,255,255,.06); }
+.nbtn .ic {
+  width: 42px; height: 42px; border-radius: 13px;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform .12s;
+}
+.nbtn:active .ic { transform: scale(.9); }
+.nbtn .lbl { font-size: 9.5px; font-weight: 600; letter-spacing: .03em; color: var(--sub); }
+
+.nmicbtn .ic { background: rgba(255,255,255,.07); }
+.nflip .ic   { background: rgba(124,92,246,.15); }
+.nflip svg   { color: var(--accent2); }
+.nreport .ic { background: rgba(255,59,92,.1); }
+.nreport svg { color: var(--red); }
+.nstop .ic   { background: rgba(255,59,92,.18); }
+.nstop svg   { color: var(--red); }
+.nskip .ic   { background: rgba(0,212,255,.12); }
+.nskip svg   { color: var(--accent); }
+.nbtn.is-muted .ic { background: rgba(255,59,92,.2) !important; }
+.nbtn.is-muted svg { color: var(--red) !important; }
+
+/* ══ SETTINGS ══ */
+.overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0,0,0,.6); backdrop-filter: blur(6px);
+  transition: opacity .3s;
+}
+.overlay.off { opacity: 0; pointer-events: none; }
+.sheet {
+  position: absolute; bottom: 0; left: 0; right: 0;
+  background: #0e1420;
+  border-radius: 22px 22px 0 0;
+  border: 1px solid var(--border); border-bottom: none;
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 20px);
+  max-height: 88dvh; overflow-y: auto;
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+}
+.overlay.off .sheet { transform: translateY(100%); }
+.shandle { width: 38px; height: 4px; border-radius: 2px; background: #1e2a3d; margin: 14px auto 0; }
+
+.suser {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 20px 18px; border-bottom: 1px solid var(--border);
+}
+.savatar {
+  width: 50px; height: 50px; border-radius: 15px;
+  background: linear-gradient(135deg, var(--accent2), var(--accent));
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800; color: #fff; flex-shrink: 0;
+}
+.sname { font-family:'Syne',sans-serif; font-weight:700; font-size:15px; }
+.semail { font-size:12px; color:var(--sub); margin-top:2px; }
+
+.sitem {
+  display: flex; align-items: center; gap: 13px;
+  padding: 14px 20px; width: 100%; text-align: left;
+  background: none; border: none; color: var(--text); cursor: pointer;
+  transition: background .12s;
+}
+.sitem:hover { background: rgba(255,255,255,.03); }
+.sico {
+  width: 36px; height: 36px; border-radius: 11px;
+  background: rgba(255,255,255,.06);
+  display: flex; align-items: center; justify-content: center; font-size: 17px; flex-shrink: 0;
+}
+.sitxt { flex: 1; }
+.sititle { font-size: 14px; font-weight: 500; }
+.sisub { font-size: 11px; color: var(--sub); margin-top:1px; }
+.sichev { color: var(--sub); }
+.sdiv { height: 1px; background: var(--border); margin: 0 20px; }
+
+.slogout {
+  margin: 10px 20px 0;
+  width: calc(100% - 40px); padding: 13px;
+  border-radius: 13px; border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.04); color: var(--text);
+  font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background .15s; display: block;
+}
+.slogout:hover { background: rgba(255,255,255,.08); }
+.sdelbtn {
+  display: block; width: calc(100% - 40px); margin: 10px 20px 20px;
+  padding: 13px; border-radius: 13px;
+  background: rgba(255,59,92,.08); border: 1px solid rgba(255,59,92,.2);
+  color: var(--red); font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background .15s; text-align: center;
+}
+.sdelbtn:hover { background: rgba(255,59,92,.15); }
+
+/* ══ MODAL ══ */
+.modal-wrap {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0,0,0,.72); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  transition: opacity .25s;
+}
+.modal-wrap.off { opacity: 0; pointer-events: none; }
+.mbox {
+  background: #0e1420; border: 1px solid var(--border);
+  border-radius: 20px; padding: 26px 22px; width: min(360px, 100%);
+  transition: transform .25s;
+}
+.modal-wrap.off .mbox { transform: scale(.95); }
+.mbox h3 { font-family:'Syne',sans-serif; font-size:17px; font-weight:800; margin-bottom:14px; }
+.lang-list { display:flex; flex-direction:column; gap:3px; max-height:55dvh; overflow-y:auto; }
+.lang-item {
+  display:flex; align-items:center; gap:10px;
+  padding:11px 12px; border-radius:11px;
+  cursor:pointer; transition: background .12s;
+  font-size:14px; border: 1px solid transparent;
+}
+.lang-item:hover { background: rgba(255,255,255,.05); }
+.lang-item.active { background: rgba(0,212,255,.08); border-color: rgba(0,212,255,.2); }
+.lang-item .lcheck { margin-left:auto; font-size:13px; opacity:0; color: var(--accent); }
+.lang-item.active .lcheck { opacity:1; }
+.mtext { font-size:13.5px; color: #8a9bbf; line-height:1.7; white-space:pre-line; }
+.mactions { display:flex; gap:10px; margin-top:20px; }
+.mactions button {
+  flex:1; padding:12px; border-radius:11px; border:none;
+  font-family:'DM Sans',sans-serif; font-size:14px; font-weight:600; cursor:pointer;
+}
+.mbcancel { background:rgba(255,255,255,.07); color:var(--text); }
+.mbdanger { background:var(--red); color:#fff; }
+.mbdanger.off { display:none; }
+.report-opts { display:flex; flex-direction:column; gap:4px; }
+.ropt {
+  padding:11px 12px; border-radius:11px; cursor:pointer;
+  font-size:14px; color:#8a9bbf; transition:background .12s; border: 1px solid transparent;
+}
+.ropt:hover { background:rgba(255,59,92,.07); border-color:rgba(255,59,92,.1); color:var(--text); }
+.ropt.sel { background:rgba(255,59,92,.1); border-color:rgba(255,59,92,.25); color:var(--red); font-weight:600; }
+
+/* ══ TOAST ══ */
+.toast {
+  position: fixed;
+  bottom: calc(var(--nav) + 14px);
+  left: 50%; transform: translateX(-50%) translateY(10px);
+  background: rgba(14,20,32,.96); backdrop-filter: blur(14px);
+  border: 1px solid var(--border);
+  border-radius: 12px; padding: 10px 20px;
+  font-size: 13.5px; font-weight: 500; color: var(--text);
+  opacity: 0; transition: opacity .25s, transform .25s;
+  pointer-events: none; z-index: 200; white-space: nowrap;
+}
+.toast.show { opacity:1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ══ LOGIN ══ -->
+<div class="screen" id="sLogin">
+  <div class="lcard">
+    <div class="llogo">B</div>
+    <div class="ltitle">BelugaChat'e<br><span>Hoşgeldiniz 🐋</span></div>
+    <p class="lsub">Dünyadan rastgele insanlarla<br>canlı video sohbet et.</p>
+
+    <div class="checks">
+      <label class="crow">
+        <input type="checkbox" id="ck18">
+        <div class="cbox"><svg width="11" height="8" viewBox="0 0 11 8" fill="none"><path d="M1 4L4 7L10 1" stroke="#07090f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span>18 yaşında veya daha büyük olduğumu onaylıyorum.</span>
+      </label>
+      <label class="crow">
+        <input type="checkbox" id="ckterms">
+        <div class="cbox"><svg width="11" height="8" viewBox="0 0 11 8" fill="none"><path d="M1 4L4 7L10 1" stroke="#07090f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <span><a href="#" onclick="openModal('terms');return false">Kullanıcı Sözleşmesi</a>'ni ve <a href="#" onclick="openModal('privacy');return false">Gizlilik Politikası</a>'nı kabul ediyorum.</span>
+      </label>
+    </div>
+
+    <button class="gbtn" onclick="googleLogin()">
+      <svg class="gico" viewBox="0 0 24 24">
+        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+      </svg>
+      Google ile Devam Et
+    </button>
+
+    <button class="entbtn" id="entbtn" disabled onclick="enterChat()">Sohbete Başla</button>
+  </div>
+</div>
+
+<!-- ══ CHAT ══ -->
+<div class="screen off" id="sChat">
+
+  <div class="vtop">
+    <video id="vStranger" autoplay playsinline></video>
+    <div class="waiting" id="waiting">
+      <div class="wname">BelugaChat</div>
+      <div class="spin"></div>
+      <p id="waitTxt">Bağlantı aranıyor…</p>
+    </div>
+  </div>
+
+  <div class="vpip">
+    <video id="vLocal" autoplay playsinline muted></video>
+    <div class="pip-label">Sen</div>
+  </div>
+
+  <div class="spill">
+    <div class="sdot" id="sdot"></div>
+    <span id="stxt">Bekleniyor</span>
+  </div>
+
+  <button class="settbtn" onclick="openSettings()">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+    </svg>
+  </button>
+
+  <!-- Nav: Mic | Kamera Çevir | Raporla | Dur | Geç -->
+  <div class="nav">
+    <button class="nbtn nmicbtn" id="micBtn" onclick="toggleMic()">
+      <div class="ic">
+        <svg id="micIco" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+          <path d="M19 10v2a7 7 0 01-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+      </div>
+      <span class="lbl" id="micLbl">Mikrofon</span>
+    </button>
+
+    <button class="nbtn nflip" onclick="flipCamera()">
+      <div class="ic">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+          <circle cx="12" cy="13" r="4"/>
+        </svg>
+      </div>
+      <span class="lbl">Kamera Çevir</span>
+    </button>
+
+    <button class="nbtn nreport" onclick="openModal('report')">
+      <div class="ic">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
+          <line x1="4" y1="22" x2="4" y2="15"/>
+        </svg>
+      </div>
+      <span class="lbl">Raporla</span>
+    </button>
+
+    <button class="nbtn nstop" id="stopBtn" onclick="toggleStop()">
+      <div class="ic">
+        <svg id="stopIco" width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2"/>
+        </svg>
+      </div>
+      <span class="lbl" id="stopLbl">Dur</span>
+    </button>
+
+    <button class="nbtn nskip" onclick="skipUser()">
+      <div class="ic">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="5 1 12 8 5 15"/><polyline points="13 1 20 8 13 15"/>
+        </svg>
+      </div>
+      <span class="lbl">Geç</span>
+    </button>
+  </div>
+</div>
+
+<!-- ══ SETTINGS ══ -->
+<div class="overlay off" id="settOverlay" onclick="overlayClose(event)">
+  <div class="sheet">
+    <div class="shandle"></div>
+    <div class="suser">
+      <div class="savatar" id="savatar">G</div>
+      <div>
+        <div class="sname" id="sname">Kullanıcı</div>
+        <div class="semail" id="semail">kullanici@gmail.com</div>
+      </div>
+    </div>
+    <button class="sitem" onclick="openModal('privacy')">
+      <div class="sico">🔒</div>
+      <div class="sitxt"><div class="sititle">Gizlilik Politikası</div></div>
+      <svg class="sichev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <button class="sitem" onclick="openModal('terms')">
+      <div class="sico">📄</div>
+      <div class="sitxt"><div class="sititle">Kullanıcı Sözleşmesi</div></div>
+      <svg class="sichev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <button class="sitem" onclick="openModal('rules')">
+      <div class="sico">📋</div>
+      <div class="sitxt"><div class="sititle">Chat Kuralları</div></div>
+      <svg class="sichev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="sdiv"></div>
+    <button class="sitem" onclick="openModal('lang')">
+      <div class="sico">🌐</div>
+      <div class="sitxt">
+        <div class="sititle">Dil</div>
+        <div class="sisub" id="curLang">Türkçe</div>
+      </div>
+      <svg class="sichev" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><polyline points="9 18 15 12 9 6"/></svg>
+    </button>
+    <div class="sdiv"></div>
+    <button class="slogout" onclick="doLogout()">🚪 &nbsp;Çıkış Yap</button>
+    <button class="sdelbtn" onclick="openModal('delete')">Hesabı Sil</button>
+  </div>
+</div>
+
+<!-- ══ MODAL ══ -->
+<div class="modal-wrap off" id="modalWrap" onclick="modalBgClose(event)">
+  <div class="mbox">
+    <h3 id="mtitle"></h3>
+    <div id="mbody"></div>
+    <div class="mactions">
+      <button class="mbcancel" onclick="closeModal()">Kapat</button>
+      <button class="mbdanger off" id="mdanger" onclick="confirmDanger()">Sil</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════
+   STATE
+══════════════════════════════════════ */
+let micOn = true, stopped = false, facingMode = 'user';
+let localStream = null;
+let peerConnection = null;
+let currentRoomId = null;
+let selectedLang = 'tr', pendingDanger = null;
+
+/* ══════════════════════════════════════
+   SOCKET.IO
+══════════════════════════════════════ */
+const socket = io();
+
+socket.on('connect', () => {
+  console.log('Socket bağlandı:', socket.id);
+});
+
+socket.on('waiting', () => {
+  setStatus('waiting');
+  document.getElementById('waitTxt').textContent = 'Eşleşme bekleniyor…';
+});
+
+socket.on('match-found', async ({ roomId, initiator }) => {
+  currentRoomId = roomId;
+  await createPeerConnection();
+
+  if (initiator) {
+    const offer = await peerConnection.createOffer();
+    await peerConnection.setLocalDescription(offer);
+    socket.emit('offer', { roomId, offer });
+  }
+});
+
+socket.on('offer', async ({ offer }) => {
+  if (!peerConnection) await createPeerConnection();
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+  const answer = await peerConnection.createAnswer();
+  await peerConnection.setLocalDescription(answer);
+  socket.emit('answer', { roomId: currentRoomId, answer });
+});
+
+socket.on('answer', async ({ answer }) => {
+  await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+});
+
+socket.on('ice-candidate', async ({ candidate }) => {
+  try {
+    if (peerConnection && candidate) {
+      await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+    }
+  } catch (e) { console.error('ICE hatası:', e); }
+});
+
+socket.on('partner-left', () => {
+  toast('Karşı taraf ayrıldı.');
+  cleanupPeer();
+  if (!stopped) findPartner();
+});
+
+/* ══════════════════════════════════════
+   WEBRTC
+══════════════════════════════════════ */
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    // TURN eklemek için aşağıyı doldurun:
+    // {
+    //   urls: 'turn:YOUR_TURN_SERVER:3478',
+    //   username: 'YOUR_USERNAME',
+    //   credential: 'YOUR_PASSWORD'
+    // }
+  ]
+};
+
+async function createPeerConnection() {
+  cleanupPeer();
+  peerConnection = new RTCPeerConnection(ICE_CONFIG);
+
+  // Kendi kamerayı ekle
+  if (localStream) {
+    localStream.getTracks().forEach(track => {
+      peerConnection.addTrack(track, localStream);
+    });
+  }
+
+  // Karşıdan gelen video
+  peerConnection.ontrack = (event) => {
+    document.getElementById('vStranger').srcObject = event.streams[0];
+    document.getElementById('waiting').classList.add('gone');
+    setStatus('live');
+    toast('🎉 Bağlantı kuruldu!');
+  };
+
+  // ICE adaylarını gönder
+  peerConnection.onicecandidate = (event) => {
+    if (event.candidate && currentRoomId) {
+      socket.emit('ice-candidate', { roomId: currentRoomId, candidate: event.candidate });
+    }
+  };
+
+  peerConnection.onconnectionstatechange = () => {
+    console.log('Bağlantı durumu:', peerConnection.connectionState);
+    if (peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'failed') {
+      cleanupPeer();
+      if (!stopped) findPartner();
+    }
+  };
+}
+
+function cleanupPeer() {
+  if (peerConnection) {
+    peerConnection.close();
+    peerConnection = null;
+  }
+  document.getElementById('vStranger').srcObject = null;
+  currentRoomId = null;
+}
+
+function findPartner() {
+  stopped = false;
+  document.getElementById('waiting').classList.remove('gone');
+  document.getElementById('waitTxt').textContent = 'Bağlantı aranıyor…';
+  setStatus('searching');
+  document.getElementById('stopLbl').textContent = 'Dur';
+  document.getElementById('stopIco').innerHTML = `<rect x="3" y="3" width="18" height="18" rx="2"/>`;
+  socket.emit('find-partner');
+}
+
+/* ══════════════════════════════════════
+   LOGIN
+══════════════════════════════════════ */
+['ck18','ckterms'].forEach(id => {
+  document.getElementById(id).addEventListener('change', () => {
+    document.getElementById('entbtn').disabled =
+      !(document.getElementById('ck18').checked && document.getElementById('ckterms').checked);
+  });
+});
+
+function googleLogin() {
+  if (!document.getElementById('ck18').checked || !document.getElementById('ckterms').checked) {
+    toast('Lütfen önce kutucukları işaretleyin.'); return;
+  }
+  // Gerçek Google Auth için buraya Firebase/Google OAuth entegre edin
+  // Şimdilik simüle ediyoruz:
+  document.getElementById('sname').textContent = 'Google Kullanıcı';
+  document.getElementById('semail').textContent = 'kullanici@gmail.com';
+  document.getElementById('savatar').textContent = 'G';
+  toast('✓ Google ile giriş yapıldı');
+  setTimeout(enterChat, 700);
+}
+
+async function enterChat() {
+  if (!document.getElementById('ck18').checked || !document.getElementById('ckterms').checked) {
+    toast('Lütfen kutucukları işaretleyin.'); return;
+  }
+  await startCamera();
+  document.getElementById('sLogin').classList.add('off');
+  document.getElementById('sChat').classList.remove('off');
+  findPartner();
+}
+
+/* ══════════════════════════════════════
+   KAMERA
+══════════════════════════════════════ */
+async function startCamera() {
+  try {
+    if (localStream) localStream.getTracks().forEach(t => t.stop());
+    localStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode, width: { ideal: 1280 }, height: { ideal: 720 } },
+      audio: true
+    });
+    document.getElementById('vLocal').srcObject = localStream;
+  } catch (e) {
+    toast('⚠️ Kamera izni alınamadı.'); console.error(e);
+  }
+}
+
+async function flipCamera() {
+  facingMode = facingMode === 'user' ? 'environment' : 'user';
+  await startCamera();
+  // Aktif bağlantıda track'i değiştir
+  if (peerConnection && localStream) {
+    const senders = peerConnection.getSenders();
+    const videoTrack = localStream.getVideoTracks()[0];
+    const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+    if (videoSender && videoTrack) videoSender.replaceTrack(videoTrack);
+  }
+  toast(facingMode === 'environment' ? '📷 Arka kamera' : '🤳 Ön kamera');
+}
+
+function toggleMic() {
+  micOn = !micOn;
+  if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = micOn);
+  const btn = document.getElementById('micBtn');
+  document.getElementById('micLbl').textContent = micOn ? 'Mikrofon' : 'Mic Kapalı';
+  const ico = document.getElementById('micIco');
+  if (micOn) {
+    btn.classList.remove('is-muted');
+    ico.innerHTML = `<path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>`;
+  } else {
+    btn.classList.add('is-muted');
+    ico.innerHTML = `<line x1="1" y1="1" x2="23" y2="23"/><path d="M9 9v3a3 3 0 005.12 2.12M15 9.34V4a3 3 0 00-5.94-.6"/><path d="M17 16.95A7 7 0 015 12v-2m14 0v2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/>`;
+  }
+}
+
+/* ══════════════════════════════════════
+   BAĞLANTI KONTROL
+══════════════════════════════════════ */
+function skipUser() {
+  if (currentRoomId) socket.emit('skip', { roomId: currentRoomId });
+  cleanupPeer();
+  toast('⏭ Sonraki kişiye geçildi');
+  findPartner();
+}
+
+function toggleStop() {
+  if (!stopped) {
+    // Durdur
+    stopped = true;
+    if (currentRoomId) socket.emit('skip', { roomId: currentRoomId });
+    cleanupPeer();
+    document.getElementById('waiting').classList.remove('gone');
+    document.getElementById('waitTxt').textContent = 'Duraklatıldı';
+    setStatus('stopped');
+    document.getElementById('stopLbl').textContent = 'Başlat';
+    document.getElementById('stopIco').innerHTML = `<polygon points="5 3 19 12 5 21 5 3"/>`;
+    toast('Bağlantı durduruldu');
+  } else {
+    findPartner();
+  }
+}
+
+function setStatus(s) {
+  const dot = document.getElementById('sdot');
+  const txt = document.getElementById('stxt');
+  if (s === 'live')      { dot.className = 'sdot live'; txt.textContent = 'Canlı'; }
+  else if (s === 'searching') { dot.className = 'sdot wait'; txt.textContent = 'Aranıyor…'; }
+  else if (s === 'waiting')   { dot.className = 'sdot wait'; txt.textContent = 'Bekleniyor'; }
+  else                        { dot.className = 'sdot'; txt.textContent = 'Duraklatıldı'; }
+}
+
+/* ══════════════════════════════════════
+   SETTINGS
+══════════════════════════════════════ */
+function openSettings() { document.getElementById('settOverlay').classList.remove('off'); }
+function closeSettings() { document.getElementById('settOverlay').classList.add('off'); }
+function overlayClose(e) { if (e.target === document.getElementById('settOverlay')) closeSettings(); }
+
+function doLogout() {
+  closeSettings();
+  stopped = true;
+  if (currentRoomId) socket.emit('skip', { roomId: currentRoomId });
+  cleanupPeer();
+  if (localStream) localStream.getTracks().forEach(t => t.stop());
+  localStream = null;
+  document.getElementById('sChat').classList.add('off');
+  document.getElementById('sLogin').classList.remove('off');
+  toast('Çıkış yapıldı.');
+}
+
+/* ══════════════════════════════════════
+   MODAL
+══════════════════════════════════════ */
+const langs = [
+  {code:'tr', flag:'🇹🇷', name:'Türkçe'},
+  {code:'en', flag:'🇺🇸', name:'English'},
+  {code:'de', flag:'🇩🇪', name:'Deutsch'},
+  {code:'fr', flag:'🇫🇷', name:'Français'},
+  {code:'es', flag:'🇪🇸', name:'Español'},
+  {code:'ru', flag:'🇷🇺', name:'Русский'},
+  {code:'ar', flag:'🇸🇦', name:'العربية'},
+  {code:'ja', flag:'🇯🇵', name:'日本語'},
+  {code:'ko', flag:'🇰🇷', name:'한국어'},
+  {code:'pt', flag:'🇧🇷', name:'Português'},
+  {code:'it', flag:'🇮🇹', name:'Italiano'},
+  {code:'nl', flag:'🇳🇱', name:'Nederlands'},
+];
+
+const modalData = {
+  privacy:{title:'🔒 Gizlilik Politikası',text:'BelugaChat, kişisel verilerinizi hiçbir koşulda üçüncü taraflarla paylaşmaz.\n\nVideo görüşmeler uçtan uca şifreli olup sunucularımızda kayıt edilmez. IP adresiniz yalnızca eşleştirme için kısa süreliğine işlenir.\n\nUygulamamız KVKK ve GDPR standartlarına uygundur.'},
+  terms:{title:'📄 Kullanıcı Sözleşmesi',text:'BelugaChat\'i kullanmak için 18 yaşından büyük olmanız gerekmektedir.\n\n• Uygunsuz, müstehcen veya yasa dışı içerik paylaşımı kesinlikle yasaktır.\n• Diğer kullanıcılara saygılı davranmak zorunludur.\n• İhlal durumunda hesabınız kalıcı olarak kapatılır.'},
+  rules:{title:'📋 Chat Kuralları',text:'1. Diğer kullanıcılara saygılı ol.\n2. Şiddet veya müstehcen içerik yayınlama.\n3. Kişisel bilgilerini paylaşma.\n4. Kural ihlalerini raporla.\n5. Reklam ve spam yasaktır.\n6. Nefret söylemi yasaktır.'},
+};
+
+function openModal(type) {
+  const danger = document.getElementById('mdanger');
+  pendingDanger = null; danger.classList.add('off'); danger.textContent = 'Sil';
+
+  if (type === 'lang') {
+    document.getElementById('mtitle').textContent = '🌐 Dil Seçimi';
+    document.getElementById('mbody').innerHTML = `<div class="lang-list">${langs.map(l =>
+      `<div class="lang-item ${l.code===selectedLang?'active':''}" onclick="selectLang('${l.code}','${l.name}')">
+        <span>${l.flag}</span><span style="flex:1">${l.name}</span><span class="lcheck">✓</span>
+      </div>`).join('')}</div>`;
+  } else if (type === 'report') {
+    document.getElementById('mtitle').textContent = '🚩 Kullanıcıyı Raporla';
+    const opts = ['Uygunsuz içerik','Taciz / Rahatsız edici davranış','Spam / Reklam','Nefret söylemi','Diğer'];
+    document.getElementById('mbody').innerHTML = `<div class="report-opts">${opts.map(o =>
+      `<div class="ropt" onclick="selReport(this)">${o}</div>`).join('')}</div>`;
+    danger.classList.remove('off'); danger.textContent = 'Raporla';
+    pendingDanger = () => { toast('✓ Rapor gönderildi'); closeModal(); };
+  } else if (type === 'delete') {
+    document.getElementById('mtitle').textContent = '⚠️ Hesabı Sil';
+    document.getElementById('mbody').innerHTML = `<p class="mtext">Hesabınızı silmek istediğinizden emin misiniz?\n\nBu işlem geri alınamaz ve tüm verileriniz kalıcı olarak silinir.</p>`;
+    danger.classList.remove('off'); danger.textContent = 'Hesabı Sil';
+    pendingDanger = () => { closeModal(); doLogout(); toast('Hesap silindi.'); };
+  } else {
+    const d = modalData[type]; if (!d) return;
+    document.getElementById('mtitle').textContent = d.title;
+    document.getElementById('mbody').innerHTML = `<p class="mtext">${d.text}</p>`;
+  }
+  document.getElementById('modalWrap').classList.remove('off');
+}
+
+function closeModal() { document.getElementById('modalWrap').classList.add('off'); }
+function modalBgClose(e) { if (e.target === document.getElementById('modalWrap')) closeModal(); }
+function confirmDanger() { if (pendingDanger) pendingDanger(); }
+
+function selectLang(code, name) {
+  selectedLang = code;
+  document.getElementById('curLang').textContent = name;
+  document.querySelectorAll('.lang-item').forEach(el => {
+    el.classList.toggle('active', el.children[1].textContent === name);
+  });
+  toast(`✓ Dil: ${name}`);
+  setTimeout(closeModal, 500);
+}
+
+function selReport(el) {
+  document.querySelectorAll('.ropt').forEach(r => r.classList.remove('sel'));
+  el.classList.add('sel');
+}
+
+/* ══════════════════════════════════════
+   TOAST
+══════════════════════════════════════ */
+let toastTmr;
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastTmr);
+  toastTmr = setTimeout(() => el.classList.remove('show'), 2200);
+}
+</script>
+</body>
+</html>
